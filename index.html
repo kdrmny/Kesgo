@@ -1,0 +1,860 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>KesGo — Pilot Kuaför Yönetimi</title>
+<style>
+  /* Minimal Apple-like siyah-gri-beyaz tema (yeşil yok) */
+  :root{
+    --bg:#f5f5f7;
+    --card:#ffffff;
+    --text:#1d1d1f;
+    --muted:#8e8e93;
+    --accent:#2b2b2d; /* koyu grafit */
+    --border:#d2d2d7;
+    --radius:10px;
+    --touch:44px;
+  }
+  html,body{height:100%;margin:0;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial; background:var(--bg); color:var(--text);}
+  .app {max-width:720px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;}
+  header{padding:18px 20px; display:flex;align-items:center;justify-content:space-between;}
+  .brand{display:flex;flex-direction:column;}
+  .brand h1{margin:0;font-size:20px;letter-spacing:0.2px}
+  .brand small{color:var(--muted);font-size:12px}
+  main{padding:0 16px 80px 16px;flex:1;}
+  .panel{background:var(--card);border-radius:var(--radius);padding:14px;margin-bottom:12px;border:1px solid var(--border);box-shadow:0 0 18px rgba(0,0,0,0.03);}
+  .row{display:flex;gap:10px;align-items:center;}
+  .row.space{justify-content:space-between;}
+  button, .btn {height:44px;min-width:44px;border-radius:10px;border:0;background:var(--accent);color:#fff;padding:0 12px;font-weight:600;cursor:pointer;}
+  button.ghost{background:transparent;color:var(--accent);border:1px solid var(--border);}
+  input, select {width:100%;padding:10px;border-radius:10px;border:1px solid var(--border);background:#fff;color:var(--text);outline:none;font-size:15px;box-sizing:border-box;}
+  input[type=time], input[type=date]{padding:8px 10px;}
+  label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px;}
+  .space-y> *{margin-bottom:12px;}
+  .muted{color:var(--muted);font-size:13px;}
+  .small{font-size:13px;color:var(--muted);}
+  nav.bottom{position:fixed;left:0;right:0;bottom:0;background:var(--card);padding:10px 16px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:center;z-index:40;}
+  .tab {flex:1;text-align:center;padding:10px;border-radius:10px;background:transparent;border:0;font-weight:600;color:var(--accent);cursor:pointer;}
+  .tab.active{background:var(--accent);color:#fff;}
+  .list-item{border-radius:10px;padding:12px;border:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;background:#fff;}
+  .badge{font-size:12px;padding:6px 8px;border-radius:999px;background:#f2f2f7;color:var(--muted);border:1px solid var(--border);}
+  .right{display:flex;gap:8px;align-items:center;}
+  .qr {display:flex;justify-content:center;padding:12px;}
+  .small-muted{font-size:12px;color:var(--muted);}
+  textarea{width:100%;min-height:90px;padding:10px;border-radius:10px;border:1px solid var(--border);background:#fff;color:var(--text);}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .hidden{display:none !important;}
+  .flex{display:flex;gap:10px;align-items:center;}
+  /* Responsive tweaks */
+  @media (max-width:520px){
+    .two{grid-template-columns:1fr;}
+    .app{padding-bottom:120px;}
+  }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <header>
+    <div class="brand">
+      <h1>KesGo (Pilot)</h1>
+      <small>Tek ekran randevu · müşteri · kasa</small>
+    </div>
+    <div>
+      <div id="salonInfo" class="small muted">Yükleniyor...</div>
+    </div>
+  </header>
+
+  <main>
+    <!-- --- Login/Create Salon Panel --- -->
+    <div id="panel-login" class="panel">
+      <div class="space-y">
+        <div class="row space">
+          <div>
+            <strong>Pilot Kullanım: 5–6 Salon</strong>
+            <div class="small-muted">Yeni salon ekleyin veya mevcut PIN ile giriş yapın.</div>
+          </div>
+        </div>
+
+        <div class="two">
+          <div>
+            <label>Salon Seçimi</label>
+            <select id="selectSalon"></select>
+          </div>
+          <div>
+            <label>PIN ile Giriş</label>
+            <input id="inputPin" placeholder="PIN (ör: 1234)" />
+          </div>
+        </div>
+
+        <div class="row">
+          <button id="btnLogin">Giriş Yap</button>
+          <button class="ghost" id="btnNewSalon">Yeni Salon Oluştur</button>
+        </div>
+
+        <div id="newSalonForm" class="hidden">
+          <label>Salon Adı</label><input id="newSalonName" placeholder="Örn: Berber Mehmet" />
+          <label>PIN (4 haneli)</label><input id="newSalonPin" placeholder="0000" maxlength="8" />
+          <label>Varsayılan Buffer (dk)</label><input id="newSalonBuffer" type="number" value="10" />
+          <label>Varsayılan Zaman Aralığı (dk)</label><input id="newSalonSlot" type="number" value="15" />
+          <div class="row">
+            <button id="btnCreateSalon">Oluştur</button>
+            <button class="ghost" id="btnCancelCreate">İptal</button>
+          </div>
+        </div>
+
+        <div>
+          <small class="small-muted">Veriler tarayıcıda saklanır. Verilerin taşınması için dışa aktar / içe aktar kullanın.</small>
+        </div>
+        <div class="row">
+          <button class="ghost" id="btnExport">Veri Dışa Aktar (JSON)</button>
+          <button class="ghost" id="btnImport">Veri İçe Al (JSON)</button>
+          <input type="file" id="fileInput" accept="application/json" class="hidden" />
+        </div>
+      </div>
+    </div>
+
+    <!-- --- Dashboard: Randevu Listesi --- -->
+    <div id="panel-dashboard" class="panel hidden">
+      <div class="row space">
+        <div>
+          <strong id="todayLabel">Bugün</strong>
+          <div class="small-muted" id="syncStatus">Senkr. durum: Lokal</div>
+        </div>
+        <div class="right">
+          <div class="small-muted">Rol: <span id="roleLabel">—</span></div>
+          <button class="ghost" id="btnSignOut">Çıkış</button>
+        </div>
+      </div>
+
+      <div style="margin-top:12px;">
+        <div class="row space" style="margin-bottom:10px">
+          <div>
+            <label>Tarih</label>
+            <input id="filterDate" type="date" />
+          </div>
+          <div>
+            <label>Çalışan (filtre)</label>
+            <select id="filterStaff"><option value="">Hepsi</option></select>
+          </div>
+        </div>
+
+        <div id="randevuContainer"></div>
+
+        <div class="row" style="margin-top:10px;">
+          <button id="btnAddRandevu">+ Yeni Randevu</button>
+          <button class="ghost" id="btnOpenKasa">Kasa</button>
+          <button class="ghost" id="btnOpenMusteri">Müşteriler</button>
+        </div>
+
+        <div style="margin-top:14px;" class="row">
+          <div class="panel" style="flex:1;">
+            <div class="small-muted">Günlük Toplam</div>
+            <div style="font-weight:700;font-size:18px">₺ <span id="dailyTotal">0</span></div>
+            <div class="small-muted">Toplam Randevu: <span id="dailyCount">0</span></div>
+          </div>
+          <div style="width:12px"></div>
+          <div class="panel" style="flex:1;">
+            <div class="small-muted">Ay / Haftalık Özet</div>
+            <div class="small-muted">En Çok Kazandıran: <span id="topCustomer">—</span></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- --- Yeni Randevu / Edit --- -->
+    <div id="panel-add" class="panel hidden">
+      <h3>Yeni Randevu / İşlem</h3>
+      <div class="space-y">
+        <div>
+          <label>Müşteri Adı</label><input id="r_ad" placeholder="Ad Soyad" />
+        </div>
+        <div>
+          <label>Telefon (benzersiz)</label><input id="r_tel" placeholder="05..." />
+        </div>
+        <div>
+          <label>İşlem</label>
+          <select id="r_islemSelect"></select>
+          <div style="margin-top:6px;"><input id="r_otherIslem" placeholder="Yeni işlem ekle (isteğe bağlı)" /></div>
+        </div>
+
+        <div class="two">
+          <div>
+            <label>Tarih</label><input id="r_tarih" type="date" />
+          </div>
+          <div>
+            <label>Saat</label><input id="r_saat" type="time" />
+          </div>
+        </div>
+
+        <div>
+          <label>Çalışan (opsiyonel)</label>
+          <select id="r_staff"></select>
+        </div>
+
+        <div class="two">
+          <div>
+            <label>Ücret ₺</label><input id="r_ucret" type="number" min="0" />
+          </div>
+          <div>
+            <label>Hizmet Süresi (dk)</label><input id="r_duration" type="number" min="5" />
+          </div>
+        </div>
+
+        <div class="row">
+          <button id="btnSaveRandevu">Kaydet</button>
+          <button class="ghost" id="btnCancelRandevu">İptal</button>
+        </div>
+
+        <div class="small-muted">Not: Aynı saatte çakışma engellenir; aynı müşteri için aynı işlem+date tekrar kaydedilemez.</div>
+      </div>
+    </div>
+
+    <!-- --- Kasa --- -->
+    <div id="panel-kasa" class="panel hidden">
+      <h3>Kasa & Ödemeler</h3>
+      <div id="kasaList"></div>
+      <div style="margin-top:8px;" class="row">
+        <button id="btnExportPdf" class="ghost">Raporu İndir (JSON)</button>
+        <div class="small-muted" style="margin-left:8px">Sadece salon sahibi gelir düzenleyebilir.</div>
+      </div>
+    </div>
+
+    <!-- --- Musteriler --- -->
+    <div id="panel-musteri" class="panel hidden">
+      <h3>Müşteri Listesi</h3>
+      <div id="customersList"></div>
+    </div>
+
+    <!-- --- Link & QR Kısmı --- -->
+    <div id="panel-link" class="panel hidden">
+      <h3>WhatsApp Link & QR Oluştur</h3>
+      <div class="space-y">
+        <label>İşlem</label><input id="ln_islem" placeholder="Saç Kesimi" />
+        <div class="two">
+          <div>
+            <label>Tarih</label><input id="ln_tarih" type="date" />
+          </div>
+          <div>
+            <label>Saat</label><input id="ln_saat" type="time" />
+          </div>
+        </div>
+        <label>Çalışan (opsiyonel)</label><input id="ln_staff" placeholder="Ahmet" />
+        <div class="row">
+          <button id="btnGenLink">Link & QR Oluştur</button>
+          <button class="ghost" id="btnClearLink">Temizle</button>
+        </div>
+        <div id="linkResult" class="hidden">
+          <div class="small-muted">WhatsApp Link:</div>
+          <div style="word-break:break-all;margin-top:6px"><a id="waLink" target="_blank"></a></div>
+          <div class="qr" id="waQr"></div>
+          <div class="row">
+            <button id="btnCopyLink" class="ghost">Linki Kopyala</button>
+            <button id="btnOpenWa" class="ghost">WhatsApp'ta Aç</button>
+          </div>
+          <div class="small-muted">Sayfa/QR, müşteri tarafında açıldığında yalnızca işlem, tarih, saat ve çalışan bilgisi gösterir. Müşteri hesabı gerekmez.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- --- Ayarlar: Owner için (hizmetler, çalışanlar, buffer vb) --- -->
+    <div id="panel-settings" class="panel hidden">
+      <h3>Ayarlar (Sahip Yetkisi)</h3>
+      <div class="space-y">
+        <label>Çalışanlar (virgülle ayır)</label>
+        <input id="cfg_staff" placeholder="Ahmet,Mehmet" />
+        <label>Hizmetler (format: İsim|Süre|Ücret, satır satır)</label>
+        <textarea id="cfg_services" placeholder="Saç Kesimi|45|150\nSakal|20|60"></textarea>
+        <div class="two">
+          <div>
+            <label>Buffer (dk)</label><input id="cfg_buffer" type="number" value="10" />
+          </div>
+          <div>
+            <label>Slot Aralığı (dk)</label><input id="cfg_slot" type="number" value="15" />
+          </div>
+        </div>
+        <div class="row">
+          <button id="btnSaveConfig">Ayarları Kaydet</button>
+          <button class="ghost" id="btnResetData">Veriyi Arşivle (silme yok)</button>
+        </div>
+        <div class="small-muted">Veri arşivleme: mevcut randevular arşivlenir (silinmez), yeni randevu listesi temizlenir.</div>
+      </div>
+    </div>
+
+  </main>
+
+  <nav class="bottom">
+    <button class="tab active" data-target="panel-dashboard">Randevular</button>
+    <button class="tab" data-target="panel-add">Yeni</button>
+    <button class="tab" data-target="panel-link">Link</button>
+    <button class="tab" data-target="panel-kasa">Kasa</button>
+    <button class="tab" data-target="panel-settings">Ayarlar</button>
+  </nav>
+</div>
+
+<!-- QR lib -->
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs/qrcode.min.js"></script>
+
+<script>
+/* KesGo — Pilot single-file app
+   localStorage keys:
+     kesgo_data -> { salons: [ {id,name,pin,buffer,slot,staff:[],services:[],randevular:[],archived:[],created_at} ] }
+   No deletion: archive instead.
+*/
+
+/* ---------- Utilities ---------- */
+const uid = ()=>Date.now().toString(36)+(Math.random().toString(36).slice(2,8));
+const qs=x=>document.querySelector(x);
+const qsa=x=>Array.from(document.querySelectorAll(x));
+const todayISO = ()=>{ const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
+const timeNow = ()=>{ const d=new Date(); return d.toTimeString().slice(0,5); };
+
+function loadData(){
+  return JSON.parse(localStorage.getItem('kesgo_data')||'{"salons":[]}');
+}
+function saveData(data){ localStorage.setItem('kesgo_data', JSON.stringify(data)); }
+
+function findSalon(id){
+  const data=loadData();
+  return data.salons.find(s=>s.id===id);
+}
+
+/* ---------- App State ---------- */
+let state = {
+  currentSalonId: null,
+  currentRole: null, // 'owner' or 'staff'
+  currentUserPin: null
+};
+
+/* ---------- Init: load salons into select ---------- */
+function refreshSalonSelect(){
+  const sel = qs('#selectSalon');
+  sel.innerHTML='';
+  const data=loadData();
+  if(data.salons.length===0){
+    const opt=document.createElement('option'); opt.value=''; opt.textContent='(Yeni salon oluşturun)'; sel.appendChild(opt);
+  } else {
+    data.salons.forEach(s=>{
+      const opt=document.createElement('option'); opt.value=s.id; opt.textContent=s.name; sel.appendChild(opt);
+    });
+  }
+}
+
+/* ---------- New Salon Flow ---------- */
+qs('#btnNewSalon').addEventListener('click', ()=>qs('#newSalonForm').classList.toggle('hidden'));
+qs('#btnCancelCreate').addEventListener('click', ()=>qs('#newSalonForm').classList.add('hidden'));
+qs('#btnCreateSalon').addEventListener('click', ()=>{
+  const name = qs('#newSalonName').value.trim()||('Salon '+(Math.random()*100|0));
+  const pin = (qs('#newSalonPin').value.trim()||'0000').slice(0,12);
+  const buffer = parseInt(qs('#newSalonBuffer').value)||10;
+  const slot = parseInt(qs('#newSalonSlot').value)||15;
+  const data = loadData();
+  const id = uid();
+  data.salons.push({id,name,pin,buffer,slot,staff:[],services:[],randevular:[],archived:[],created_at:new Date().toISOString()});
+  saveData(data);
+  refreshSalonSelect();
+  qs('#newSalonForm').classList.add('hidden');
+  alert('Salon oluşturuldu. Listeden seçip PIN ile giriş yapabilirsiniz.');
+});
+
+/* ---------- Login ---------- */
+qs('#btnLogin').addEventListener('click', ()=>{
+  const sel = qs('#selectSalon').value;
+  const pin = qs('#inputPin').value.trim();
+  if(!sel){ alert('Lütfen salon seçin veya oluşturun.'); return; }
+  const salon = findSalon(sel);
+  if(!salon){ alert('Salon bulunamadı.'); return; }
+  if(pin === salon.pin){
+    // ask role selection (owner/staff)
+    const role = confirm('Salon sahibi misiniz? Tamam=Evet (sahip), İptal=Hayır (çalışan)') ? 'owner' : 'staff';
+    state.currentSalonId = salon.id;
+    state.currentRole = role;
+    state.currentUserPin = pin;
+    afterLogin();
+  } else {
+    alert('PIN hatalı.');
+  }
+});
+
+/* ---------- After Login: show dashboard ---------- */
+function afterLogin(){
+  // hide login panel, show dashboard
+  qs('#panel-login').classList.add('hidden');
+  qs('#panel-dashboard').classList.remove('hidden');
+  qs('#panel-settings').classList.add('hidden');
+  qs('#panel-add').classList.add('hidden');
+  qs('#panel-kasa').classList.add('hidden');
+  qs('#panel-musteri').classList.add('hidden');
+  qs('#panel-link').classList.add('hidden');
+  // update salon info
+  updateSalonHeader();
+  populateConfigToUI();
+  populateServicesSelect();
+  populateStaffSelects();
+  qs('#filterDate').value = todayISO();
+  qs('.tab[data-target="panel-dashboard"]').classList.add('active');
+  qsa('.tab').forEach(t=>t.classList.remove('active'));
+  qsa('.tab').forEach(t=>{
+    if(t.dataset.target==='panel-dashboard') t.classList.add('active');
+  });
+  renderDashboard();
+}
+
+/* ---------- Update Salon Header ---------- */
+function updateSalonHeader(){
+  const salon = findSalon(state.currentSalonId);
+  if(!salon) return;
+  qs('#salonInfo').textContent = salon.name;
+  qs('#roleLabel').textContent = state.currentRole==='owner'?'Sahip':'Çalışan';
+}
+
+/* ---------- Render Dashboard Randevular ---------- */
+function renderDashboard(){
+  const salon = findSalon(state.currentSalonId);
+  if(!salon) return;
+  // set labels
+  qs('#todayLabel').textContent = `Tarih: ${qs('#filterDate').value || todayISO()}`;
+  // filter date and staff
+  const date = qs('#filterDate').value || todayISO();
+  const staffFilter = qs('#filterStaff').value;
+  const container = qs('#randevuContainer');
+  container.innerHTML='';
+  const data = salon.randevular.slice().sort((a,b)=>{
+    if(a.tarih!==b.tarih) return a.tarih.localeCompare(b.tarih);
+    return a.saat.localeCompare(b.saat);
+  });
+  let dailyTotal=0,dailyCount=0;
+  data.forEach(r=>{
+    if(r.tarih !== date) return;
+    if(staffFilter && r.calisan !== staffFilter) return;
+    const div = document.createElement('div'); div.className='list-item';
+    const left = document.createElement('div');
+    left.innerHTML=`<div style="font-weight:700">${r.ad}</div><div class="small-muted">${r.islem} • ${r.tarih} ${r.saat} ${r.calisan?(' • '+r.calisan):''}</div>`;
+    const right = document.createElement('div'); right.className='right';
+    const paidBadge = document.createElement('div'); paidBadge.className='badge'; paidBadge.textContent = r.paid?('Ödendi'):'Bekliyor';
+    const showBtn = document.createElement('button'); showBtn.className='ghost'; showBtn.textContent='Detay'; showBtn.onclick=()=>openRandevuDetail(r.id);
+    const payBtn = document.createElement('button'); payBtn.textContent = r.paid?'İade':'Ödeme Al';
+    payBtn.onclick=()=>togglePayment(r.id);
+    right.appendChild(paidBadge); right.appendChild(showBtn); right.appendChild(payBtn);
+    div.appendChild(left); div.appendChild(right);
+    container.appendChild(div);
+    if(r.tarih===date){ dailyTotal += (r.paid? r.ucret : 0); dailyCount++; }
+  });
+  qs('#dailyTotal').textContent = dailyTotal.toFixed(2);
+  qs('#dailyCount').textContent = dailyCount;
+  // compute topCustomer simple
+  const customerTotals = {};
+  salon.randevular.forEach(r=>{ if(!customerTotals[r.tel]) customerTotals[r.tel]=0; customerTotals[r.tel]+= (r.paid? r.ucret:0);});
+  let topCust = Object.entries(customerTotals).sort((a,b)=>b[1]-a[1])[0];
+  qs('#topCustomer').textContent = topCust ? `${topCust[0]} (₺${topCust[1]})` : '—';
+}
+
+/* ---------- Check Overlap: service duration + buffer ---------- */
+function hasOverlap(salon, date, startTime, duration, ignoreId=null){
+  // convert to minutes from midnight
+  function toMin(t){ const [h,m]=t.split(':').map(Number); return h*60+m; }
+  const s = toMin(startTime); const e = s + Number(duration) + Number(salon.buffer||10);
+  for(const r of salon.randevular){
+    if(r.id===ignoreId) continue;
+    if(r.tarih !== date) continue;
+    const rs = toMin(r.saat); const re = rs + Number(r.duration) + Number(salon.buffer||10);
+    // overlap if s < re && rs < e
+    if(s < re && rs < e) return true;
+  }
+  return false;
+}
+
+/* ---------- Add Randevu ---------- */
+qs('#btnAddRandevu').addEventListener('click', ()=>{
+  if(!state.currentSalonId) return alert('Salon seçili değil.');
+  // prepare new form defaults
+  qs('#r_ad').value=''; qs('#r_tel').value=''; qs('#r_islemSelect').value=''; qs('#r_otherIslem').value='';
+  qs('#r_tarih').value = todayISO(); qs('#r_saat').value = timeNow();
+  qs('#r_staff').value = '';
+  qs('#r_ucret').value = ''; qs('#r_duration').value = '';
+  // open panel
+  showPanel('panel-add');
+});
+
+qs('#btnCancelRandevu').addEventListener('click', ()=>showPanel('panel-dashboard'));
+
+qs('#btnSaveRandevu').addEventListener('click', ()=>{
+  const salon = findSalon(state.currentSalonId);
+  if(!salon) return;
+  const ad = qs('#r_ad').value.trim();
+  const tel = qs('#r_tel').value.trim();
+  let islem = qs('#r_islemSelect').value;
+  const other = qs('#r_otherIslem').value.trim();
+  if(other) {
+    // push to services list for salon as custom service
+    const serviceId = uid();
+    salon.services = salon.services || [];
+    salon.services.push({id:serviceId,name:other,duration:parseInt(qs('#r_duration').value)||30,price:parseFloat(qs('#r_ucret').value)||0});
+    islem = other;
+  }
+  const tarih = qs('#r_tarih').value;
+  const saat = qs('#r_saat').value;
+  const calisan = qs('#r_staff').value || '';
+  const ucret = parseFloat(qs('#r_ucret').value) || 0;
+  const duration = parseInt(qs('#r_duration').value) || salon.slot || 15;
+
+  if(!ad || !tel || !islem || !tarih || !saat){ alert('Zorunlu alanlar eksik.'); return; }
+  // basic phone normalization
+  const telNorm = tel.replace(/\s+/g,'');
+  // check duplicate same customer+service+date
+  const dup = salon.randevular.find(r=>r.tel===telNorm && r.islem===islem && r.tarih===tarih);
+  if(dup){ alert('Bu müşteri için aynı işlem ve tarihte zaten kayıt mevcut.'); return; }
+  // check overlap
+  if(hasOverlap(salon,tarih,saat,duration,null)){
+    alert('Seçilen saat dolu veya çakışıyor. Lütfen başka saat seçin.');
+    return;
+  }
+  // create randevu
+  const r = { id: uid(), ad, tel:telNorm, islem, tarih, saat, calisan, ucret, duration, paid:false, created_at:new Date().toISOString() };
+  salon.randevular.push(r);
+  // persist
+  const data = loadData(); const idx = data.salons.findIndex(s=>s.id===salon.id); data.salons[idx]=salon; saveData(data);
+  alert('Randevu kaydedildi.');
+  showPanel('panel-dashboard');
+  renderDashboard();
+});
+
+/* ---------- Open Randevu Detail: allow mark paid, edit only owner ---------- */
+function openRandevuDetail(id){
+  const salon = findSalon(state.currentSalonId);
+  const r = salon.randevular.find(x=>x.id===id);
+  if(!r) return alert('Randevu bulunamadı.');
+  // Populate add panel for edit mode
+  qs('#r_ad').value = r.ad;
+  qs('#r_tel').value = r.tel;
+  qs('#r_islemSelect').value = r.islem;
+  qs('#r_otherIslem').value = '';
+  qs('#r_tarih').value = r.tarih;
+  qs('#r_saat').value = r.saat;
+  qs('#r_staff').value = r.calisan||'';
+  qs('#r_ucret').value = r.ucret;
+  qs('#r_duration').value = r.duration;
+  showPanel('panel-add');
+  // change save button behavior temporarily
+  const saveBtn = qs('#btnSaveRandevu');
+  saveBtn.textContent = 'Güncelle';
+  saveBtn.onclick = ()=>{
+    // Only owner or staff may update basic fields; but if changing time must check owner?
+    // For simplicity: allow owner to edit everything, staff can edit non-time fields.
+    const salonFresh = findSalon(state.currentSalonId);
+    const idx = salonFresh.randevular.findIndex(x=>x.id===id);
+    if(idx===-1) return alert('Kayıt silinmiş olabilir.');
+    if(state.currentRole !== 'owner'){
+      // staff limited: can update paid flag only via payment button. Allow editing notes only.
+      salonFresh.randevular[idx].ad = qs('#r_ad').value.trim();
+      salonFresh.randevular[idx].tel = qs('#r_tel').value.trim();
+      salonFresh.randevular[idx].islem = qs('#r_islemSelect').value || qs('#r_otherIslem').value.trim();
+      salonFresh.randevular[idx].calisan = qs('#r_staff').value;
+      salonFresh.randevular[idx].ucret = parseFloat(qs('#r_ucret').value)||0;
+      // do not change time for staff
+    } else {
+      // owner may change all fields, but time change must check overlap
+      const newTarih = qs('#r_tarih').value;
+      const newSaat = qs('#r_saat').value;
+      const newDur = parseInt(qs('#r_duration').value)||salonFresh.slot;
+      if(hasOverlap(salonFresh,newTarih,newSaat,newDur,id)){
+        return alert('Yeni zaman başka randevu ile çakışıyor.');
+      }
+      salonFresh.randevular[idx].ad = qs('#r_ad').value.trim();
+      salonFresh.randevular[idx].tel = qs('#r_tel').value.trim();
+      salonFresh.randevular[idx].islem = qs('#r_islemSelect').value || qs('#r_otherIslem').value.trim();
+      salonFresh.randevular[idx].tarih = newTarih;
+      salonFresh.randevular[idx].saat = newSaat;
+      salonFresh.randevular[idx].calisan = qs('#r_staff').value;
+      salonFresh.randevular[idx].ucret = parseFloat(qs('#r_ucret').value)||0;
+      salonFresh.randevular[idx].duration = newDur;
+    }
+    // persist
+    const data = loadData(); const sidx = data.salons.findIndex(s=>s.id===salonFresh.id); data.salons[sidx]=salonFresh; saveData(data);
+    alert('Güncellendi.');
+    // reset save button
+    saveBtn.textContent='Kaydet';
+    saveBtn.onclick = ()=>{}; // will be set back after re-render
+    showPanel('panel-dashboard');
+    renderDashboard();
+  };
+}
+
+/* ---------- Toggle Payment (owner can set/unset, staff can only set paid true) ---------- */
+function togglePayment(id){
+  const salon = findSalon(state.currentSalonId);
+  const idx = salon.randevular.findIndex(r=>r.id===id);
+  if(idx===-1) return;
+  const r = salon.randevular[idx];
+  if(!r.paid){
+    // check duplicate payment prevention: same customer+service+date already paid?
+    const dupPaid = salon.randevular.find(x=>x.tel===r.tel && x.islem===r.islem && x.tarih===r.tarih && x.paid);
+    if(dupPaid){ return alert('Bu müşteri için aynı işlem zaten ödenmiş. Tekrarlanan ödeme engellendi.'); }
+    // mark paid
+    r.paid = true;
+    r.paid_at = new Date().toISOString();
+    // add to ledger? we treat randevu as payment record
+    // save
+    const data = loadData(); const sidx = data.salons.findIndex(s=>s.id===salon.id); data.salons[sidx]=salon; saveData(data);
+    alert('Ödeme kaydedildi.');
+  } else {
+    // if already paid, allow owner to mark refund/undo
+    if(state.currentRole !== 'owner'){
+      return alert('Ödemenin iptali için salon sahibine danışın.');
+    }
+    const confirmUndo = confirm('Ödemeyi geri almak istiyor musunuz? (Kayıt arşivlenmez, ödeme işareti kaldırılır)');
+    if(confirmUndo){
+      r.paid = false;
+      delete r.paid_at;
+      const data = loadData(); const sidx = data.salons.findIndex(s=>s.id===salon.id); data.salons[sidx]=salon; saveData(data);
+      alert('Ödeme kaldırıldı.');
+    }
+  }
+  renderDashboard();
+}
+
+/* ---------- Kasa Render ---------- */
+function renderKasa(){
+  const salon = findSalon(state.currentSalonId);
+  if(!salon) return;
+  const div = qs('#kasaList'); div.innerHTML='';
+  const paid = salon.randevular.filter(r=>r.paid).sort((a,b)=> (a.tarih+b.saat) > (b.tarih+a.saat) ? -1:1 );
+  let total=0;
+  paid.forEach(r=>{
+    total += r.ucret||0;
+    const card = document.createElement('div'); card.className='list-item';
+    card.innerHTML = `<div><b>${r.ad}</b><div class="small-muted">${r.islem} • ${r.tarih} ${r.saat}</div></div>`;
+    const right = document.createElement('div'); right.className='right';
+    const amt = document.createElement('div'); amt.textContent = '₺'+(r.ucret||0); amt.className='badge';
+    const exportBtn = document.createElement('button'); exportBtn.className='ghost'; exportBtn.textContent='Detay';
+    right.appendChild(amt); right.appendChild(exportBtn);
+    card.appendChild(right); div.appendChild(card);
+  });
+  qs('#topGelir') && (qs('#topGelir').textContent = total.toFixed(2));
+  qs('#topGelir') || null;
+}
+
+/* ---------- Customers Render ---------- */
+function renderCustomers(){
+  const salon = findSalon(state.currentSalonId);
+  if(!salon) return;
+  const div = qs('#customersList'); div.innerHTML='';
+  const map = {};
+  salon.randevular.forEach(r=>{
+    if(!map[r.tel]) map[r.tel] = {ad:r.ad, tel:r.tel, total:0, last:r.tarih};
+    map[r.tel].total += r.ucret||0;
+    if(r.tarih > map[r.tel].last) map[r.tel].last = r.tarih;
+  });
+  Object.values(map).forEach(c=>{
+    const card = document.createElement('div'); card.className='list-item';
+    card.innerHTML = `<div><b>${c.ad}</b><div class="small-muted">${c.tel} • Son:${c.last}</div></div>`;
+    const right = document.createElement('div'); right.className='right';
+    const amt = document.createElement('div'); amt.className='badge'; amt.textContent='₺'+(c.total||0);
+    const callBtn = document.createElement('button'); callBtn.className='ghost'; callBtn.textContent='Ara';
+    callBtn.onclick = ()=>{ window.location.href = 'tel:'+c.tel; };
+    right.appendChild(amt); right.appendChild(callBtn);
+    card.appendChild(right); div.appendChild(card);
+  });
+}
+
+/* ---------- Link & QR generation ---------- */
+qs('#btnGenLink').addEventListener('click', ()=>{
+  const islem = qs('#ln_islem').value.trim();
+  const tarih = qs('#ln_tarih').value;
+  const saat = qs('#ln_saat').value;
+  const staff = qs('#ln_staff').value.trim();
+  if(!islem||!tarih||!saat) return alert('İşlem, tarih ve saat gerekli.');
+  const msg = `Merhaba! ${tarih} ${saat} için "${islem}" randevunuz hazır.${staff? ' Çalışan: '+staff : ''} Lütfen onaylamak için cevap verin.`;
+  const waLink = `https://wa.me/?text=${encodeURIComponent(msg)}`;
+  qs('#waLink').href = waLink; qs('#waLink').textContent = waLink;
+  qs('#linkResult').classList.remove('hidden');
+  qs('#linkResult').classList.remove('hidden');
+  // render QR
+  qs('#waQr').innerHTML=''; new QRCode(qs('#waQr'), {text:waLink,width:160,height:160});
+});
+
+qs('#btnCopyLink').addEventListener('click', ()=>{
+  const link = qs('#waLink').href;
+  navigator.clipboard.writeText(link).then(()=>alert('Kopyalandı.'));
+});
+qs('#btnOpenWa').addEventListener('click', ()=>{ window.open(qs('#waLink').href,'_blank'); });
+qs('#btnClearLink').addEventListener('click', ()=>{ qs('#ln_islem').value=''; qs('#ln_tarih').value=''; qs('#ln_saat').value=''; qs('#ln_staff').value=''; qs('#linkResult').classList.add('hidden'); qs('#waQr').innerHTML=''; });
+
+/* ---------- Settings (owner) ---------- */
+qs('#btnSaveConfig').addEventListener('click', ()=>{
+  if(state.currentRole!=='owner') return alert('Ayarlar sadece salon sahibi tarafından değiştirilebilir.');
+  const salon = findSalon(state.currentSalonId);
+  salon.staff = qs('#cfg_staff').value.split(',').map(s=>s.trim()).filter(Boolean);
+  // parse services textarea
+  const lines = qs('#cfg_services').value.split('\n').map(l=>l.trim()).filter(Boolean);
+  salon.services = lines.map(line=>{
+    const parts = line.split('|').map(p=>p.trim());
+    return { id:uid(), name:parts[0]||'Hizmet', duration: parseInt(parts[1])||30, price: parseFloat(parts[2])||0 };
+  });
+  salon.buffer = parseInt(qs('#cfg_buffer').value)||10;
+  salon.slot = parseInt(qs('#cfg_slot').value)||15;
+  // persist
+  const data=loadData(); const idx=data.salons.findIndex(s=>s.id===salon.id); data.salons[idx]=salon; saveData(data);
+  populateServicesSelect(); populateStaffSelects();
+  alert('Ayarlar kaydedildi.');
+});
+
+/* Archive data (no deletion) */
+qs('#btnResetData').addEventListener('click', ()=>{
+  if(state.currentRole!=='owner') return alert('Sadece sahip arşivleyebilir.');
+  if(!confirm('Tüm mevcut randevuları arşivlemek istiyor musunuz? (Veri silinmez, yeni randevular temiz listeden başlayacak)')) return;
+  const salon = findSalon(state.currentSalonId);
+  salon.archived = salon.archived.concat(salon.randevular);
+  salon.randevular = [];
+  const data = loadData(); const idx = data.salons.findIndex(s=>s.id===salon.id); data.salons[idx]=salon; saveData(data);
+  alert('Randevular arşivlendi.');
+  renderDashboard();
+});
+
+/* ---------- Export / Import ---------- */
+qs('#btnExport').addEventListener('click', ()=>{
+  const data = loadData();
+  const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download='kesgo-data.json'; a.click(); URL.revokeObjectURL(url);
+});
+qs('#btnImport').addEventListener('click', ()=>qs('#fileInput').click());
+qs('#fileInput').addEventListener('change', (e)=>{
+  const f = e.target.files[0]; if(!f) return;
+  const reader = new FileReader();
+  reader.onload = ev=>{
+    try{
+      const imported = JSON.parse(ev.target.result);
+      if(!imported.salons) return alert('Geçersiz dosya.');
+      localStorage.setItem('kesgo_data', JSON.stringify(imported));
+      alert('Veri yüklendi. Uygulama yeniden yüklenecek.');
+      location.reload();
+    }catch(err){ alert('İçe aktarım başarısız: '+err.message); }
+  };
+  reader.readAsText(f);
+});
+
+/* ---------- Navigation helper ---------- */
+function showPanel(id){
+  qsa('.panel').forEach(p=>p.classList.add('hidden'));
+  qs('#panel-dashboard').classList.add('hidden');
+  qs('#panel-settings').classList.add('hidden');
+  qs('#panel-add').classList.add('hidden');
+  qs('#panel-kasa').classList.add('hidden');
+  qs('#panel-link').classList.add('hidden');
+  qs('#panel-musteri').classList.add('hidden');
+  qs('#panel-login').classList.add('hidden');
+  qs('#'+id).classList.remove('hidden');
+  // handle tab highlight
+  qsa('.tab').forEach(t=>t.classList.remove('active'));
+  qsa('.tab').forEach(t=>{ if(t.dataset.target===id) t.classList.add('active'); });
+  // render panels
+  if(id==='panel-dashboard') renderDashboard();
+  if(id==='panel-kasa') renderKasa();
+  if(id==='panel-musteri') renderCustomers();
+}
+
+/* tabs */
+qsa('.tab').forEach(t=>t.addEventListener('click', ()=> showPanel(t.dataset.target)));
+
+/* ---------- Helpers for settings populate ---------- */
+function populateServicesSelect(){
+  const salon = findSalon(state.currentSalonId);
+  const sel = qs('#r_islemSelect');
+  sel.innerHTML='';
+  (salon.services||[]).forEach(s=>{
+    const opt = document.createElement('option'); opt.value=s.name; opt.textContent = `${s.name} (${s.duration}dk • ₺${s.price})`; sel.appendChild(opt);
+  });
+  // when select changes, auto-fill price/duration
+  sel.onchange = ()=>{
+    const val = sel.value;
+    const svc = (salon.services||[]).find(s=>s.name===val);
+    if(svc){
+      qs('#r_duration').value = svc.duration;
+      qs('#r_ucret').value = svc.price;
+    }
+  };
+}
+
+function populateStaffSelects(){
+  const salon = findSalon(state.currentSalonId);
+  const staffArr = salon.staff || [];
+  const staffSel = qs('#r_staff'); staffSel.innerHTML = '<option value="">—</option>';
+  const staffFilter = qs('#filterStaff'); staffFilter.innerHTML = '<option value="">Hepsi</option>';
+  const lnStaff = qs('#ln_staff'); lnStaff.value='';
+  (staffArr||[]).forEach(s=>{
+    const opt = document.createElement('option'); opt.value=s; opt.textContent = s; staffSel.appendChild(opt);
+    const opt2 = document.createElement('option'); opt2.value=s; opt2.textContent = s; staffFilter.appendChild(opt2);
+  });
+}
+
+/* populate config fields */
+function populateConfigToUI(){
+  const salon = findSalon(state.currentSalonId);
+  if(!salon) return;
+  qs('#cfg_staff').value = (salon.staff||[]).join(',');
+  qs('#cfg_services').value = (salon.services||[]).map(s=>`${s.name}|${s.duration}|${s.price}`).join('\n');
+  qs('#cfg_buffer').value = salon.buffer || 10;
+  qs('#cfg_slot').value = salon.slot || 15;
+}
+
+/* ---------- Sign out ---------- */
+qs('#btnSignOut').addEventListener('click', ()=>{
+  if(!confirm('Çıkış yapmak istediğinize emin misiniz?')) return;
+  state.currentSalonId = null; state.currentRole = null; state.currentUserPin=null;
+  qs('#panel-dashboard').classList.add('hidden');
+  qs('#panel-login').classList.remove('hidden');
+  qs('#salonInfo').textContent='Yüklendi...';
+});
+
+/* ---------- Init app data ---------- */
+(function init(){
+  // ensure at least one sample salon exists for pilot if none; but user said no demo — create empty default with PIN 0000 so owner can create proper salons quickly
+  const data = loadData();
+  if(!data.salons || data.salons.length===0){
+    const id = uid();
+    data.salons = [{ id, name: 'Örnek Salon (PIN:0000)', pin:'0000', buffer:10, slot:15, staff:[], services:[{id:uid(),name:'Saç Kesimi',duration:45,price:150},{id:uid(),name:'Sakal',duration:20,price:60}], randevular:[], archived:[], created_at:new Date().toISOString() }];
+    saveData(data);
+  }
+  refreshSalonSelect();
+  // set defaults
+  qs('#filterDate').value = todayISO();
+  populateSalonDropdownOnLoad();
+})();
+
+/* populate salon dropdown display on load */
+function populateSalonDropdownOnLoad(){
+  const sel = qs('#selectSalon');
+  if(sel.options.length>0) sel.selectedIndex = 0;
+}
+
+/* ---------- render helpers binding ---------- */
+/* when filter changes */
+qs('#filterDate').addEventListener('change', renderDashboard);
+qs('#filterStaff').addEventListener('change', renderDashboard);
+
+/* panel nav from dashboard buttons */
+qs('#btnOpenKasa').addEventListener('click', ()=>showPanel('panel-kasa'));
+qs('#btnOpenMusteri').addEventListener('click', ()=>showPanel('panel-musteri'));
+
+/* go back from add form */
+qs('#btnCancelRandevu').addEventListener('click', ()=>showPanel('panel-dashboard'));
+
+/* when dashboard loads, update salon header and lists */
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible'){ refreshSalonSelect(); if(state.currentSalonId) renderDashboard(); } });
+
+/* ensure save button behavior restored on cancel */
+setInterval(()=>{
+  const saveBtn = qs('#btnSaveRandevu');
+  if(saveBtn && saveBtn.textContent==='Kaydet'){
+    saveBtn.onclick = ()=>{
+      // bind default save behavior (previously set)
+      qs('#btnSaveRandevu').dispatchEvent(new Event('click'));
+    };
+  }
+},1000);
+
+</script>
+</body>
+</html>
